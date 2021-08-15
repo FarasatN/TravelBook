@@ -81,10 +81,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
 
-            @Override
-            public void onStatusChanged(String provider, int status, Bundle extras) {
 
-            }
         };
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
@@ -123,8 +120,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if(result){
                     //permission granted
                     if(ContextCompat.checkSelfPermission(MapsActivity.this,Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
-                        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,0,0,locationListener);
+                        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 10, locationListener);
                         Location lastlocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
                         if(lastlocation != null){
                             LatLng lastUserLocation = new LatLng(lastlocation.getLatitude(),lastlocation.getLongitude());
