@@ -1,4 +1,4 @@
-package com.farasatnovruzov.travelbook;
+package com.farasatnovruzov.travelbook.view;
 
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
@@ -7,9 +7,11 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
+import androidx.room.Room;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -19,6 +21,10 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Toast;
 
+import com.farasatnovruzov.travelbook.R;
+import com.farasatnovruzov.travelbook.model.Place;
+import com.farasatnovruzov.travelbook.roomdb.PlaceDao;
+import com.farasatnovruzov.travelbook.roomdb.PlaceDatabase;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -27,6 +33,11 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.farasatnovruzov.travelbook.databinding.ActivityMapsBinding;
 import com.google.android.material.snackbar.Snackbar;
+
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
+import io.reactivex.rxjava3.core.Scheduler;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,GoogleMap.OnMapLongClickListener{
 
@@ -37,6 +48,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     LocationListener locationListener;
     SharedPreferences sharedPreferences;
     boolean info;
+    PlaceDatabase db;
+    PlaceDao placeDao;
+    Double selectedLatitude;
+    Double selectedLongitude;
+    private CompositeDisposable compositeDisposable = new CompositeDisposable();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,6 +70,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         registerLauncher();
         sharedPreferences = MapsActivity.this.getSharedPreferences("com.farasatnovruzov.travelbook",MODE_PRIVATE);
         info = false;
+
+        db = Room.databaseBuilder(getApplicationContext(),PlaceDatabase.class,"Places")
+//                .allowMainThreadQueries()
+                .build();
+        placeDao = db.placeDao();
+
+        selectedLatitude = 0.0;
+        selectedLongitude = 0.0;
     }
 
     /**
@@ -69,6 +94,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
         mMap.setOnMapLongClickListener(this);
 //        registerLauncher();
+
+        binding.saveButton.setEnabled(false);
 
         locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
         locationListener = new LocationListener() {
@@ -141,5 +168,41 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapLongClick(@NonNull LatLng latLng) {
         mMap.clear();
         mMap.addMarker(new MarkerOptions().position(latLng));
+
+        selectedLatitude = latLng.latitude;
+        selectedLongitude = latLng.longitude;
+        binding.saveButton.setEnabled(true);
+    }
+
+    public void save(View view){
+        Place place  = new Place(binding.placeNameText.getText().toString(),selectedLatitude,selectedLongitude);
+//        placeDao.insert(place).subscribeOn(Schedulers.io()).subscribe();
+
+        compositeDisposable.add(placeDao.insert(place)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(MapsActivity.this::handleResponse)
+        );
+    }
+
+    public void handleResponse(){
+        Intent intent = new Intent(MapsActivity.this,MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        startActivity(intent);
+    }
+
+    public void delete(View view){
+//        compositeDisposable.add(placeDao.delete()
+//                .subscribeOn(Schedulers.io())
+//                .observeOn(AndroidSchedulers.mainThread())
+//                .subscribe(MapsActivity.this::handleResponse)
+//        );
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        compositeDisposable.clear();
     }
 }
